@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>禅塔罗</title>
+  <style>
+    :root {
+      --ink: #f7efe0;
+      --muted: rgba(247, 239, 224, 0.68);
+      --faint: rgba(247, 239, 224, 0.42);
+      --gold: #d8b86a;
+      --gold-soft: rgba(216, 184, 106, 0.24);
+      --glass: rgba(14, 18, 42, 0.52);
+      --glass-light: rgba(247, 239, 224, 0.11);
+      --shadow: rgba(2, 4, 18, 0.42);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      min-height: 100%;
+    }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      color: var(--ink);
+      font-family: "Source Han Serif SC", "Noto Serif SC", "Songti SC", "SimSun", Georgia, serif;
+      background:
+        radial-gradient(circle at 18% 18%, rgba(98, 70, 190, 0.44), transparent 28%),
+        radial-gradient(circle at 86% 12%, rgba(41, 91, 158, 0.38), transparent 26%),
+        radial-gradient(circle at 52% 86%, rgba(216, 184, 106, 0.14), transparent 30%),
+        linear-gradient(135deg, #070b24 0%, #17103d 46%, #26124d 100%);
+      overflow-x: hidden;
+    }
+
+    body::before {
+      position: fixed;
+      inset: 0;
+      content: "";
+      pointer-events: none;
+      background-image:
+        linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+      background-size: 44px 44px;
+      mask-image: radial-gradient(circle at center, black, transparent 74%);
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    .app {
+      position: relative;
+      z-index: 1;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      gap: 22px;
+      width: min(1180px, 100%);
+      margin: 0 auto;
+      padding: 28px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 18px;
+    }
+
+    .title-block {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(2.7rem, 8vw, 5.8rem);
+      font-weight: 500;
+      line-height: 0.95;
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      margin: 0;
+      color: var(--muted);
+      font-size: clamp(1rem, 2.2vw, 1.28rem);
+      letter-spacing: 0.08em;
+    }
+
+    .shell {
+      flex: 1;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(320px, 390px);
+      gap: 22px;
+      align-items: stretch;
+    }
+
+    .stage,
+    .result-panel,
+    .control-panel,
+    .history-panel {
+      border: 1px solid var(--gold-soft);
+      background: var(--glass);
+      box-shadow: 0 24px 80px var(--shadow);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+    }
+
+    .stage {
+      min-height: 560px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 24px;
+      padding: 28px;
+      border-radius: 24px;
+    }
+
+    .card-zone {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      perspective: 1200px;
+    }
+
+    .tarot-card {
+      width: min(64vw, 280px);
+      aspect-ratio: 2 / 3;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid rgba(216, 184, 106, 0.62);
+      border-radius: 28px;
+      background:
+        linear-gradient(145deg, rgba(247, 239, 224, 0.12), transparent 35%),
+        radial-gradient(circle at center, rgba(216, 184, 106, 0.18), transparent 54%),
+        rgba(9, 13, 35, 0.88);
+      box-shadow:
+        0 32px 80px rgba(0, 0, 0, 0.42),
+        0 8px 26px rgba(216, 184, 106, 0.18),
+        inset 0 0 0 10px rgba(216, 184, 106, 0.055);
+      overflow: hidden;
+      transform: translateY(0);
+      transition: opacity 420ms ease, transform 420ms ease, box-shadow 420ms ease;
+    }
+
+    .tarot-card::before,
+    .tarot-card::after {
+      position: absolute;
+      content: "";
+      border: 1px solid rgba(216, 184, 106, 0.24);
+      border-radius: inherit;
+      pointer-events: none;
+    }
+
+    .tarot-card::before {
+      inset: 14px;
+    }
+
+    .tarot-card::after {
+      width: 58%;
+      aspect-ratio: 1;
+      border-radius: 50%;
+    }
+
+    .tarot-card.is-drawn {
+      transform: translateY(-8px);
+      box-shadow:
+        0 38px 90px rgba(0, 0, 0, 0.48),
+        0 10px 34px rgba(216, 184, 106, 0.24),
+        inset 0 0 0 10px rgba(216, 184, 106, 0.055);
+    }
+
+    .tarot-card.is-fading {
+      opacity: 0;
+      transform: translateY(12px) scale(0.98);
+    }
+
+    .card-face {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 18px;
+      text-align: center;
+    }
+
+    .card-symbol {
+      width: 96px;
+      height: 96px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid rgba(216, 184, 106, 0.36);
+      border-radius: 50%;
+      color: var(--gold);
+      background: rgba(247, 239, 224, 0.07);
+      font-size: clamp(2.6rem, 8vw, 4.4rem);
+      line-height: 1;
+    }
+
+    .card-label {
+      margin: 0;
+      color: var(--muted);
+      font-size: clamp(1.15rem, 3vw, 1.6rem);
+      line-height: 1.35;
+    }
+
+    .control-panel {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto auto;
+      gap: 12px;
+      align-items: center;
+      padding: 16px;
+      border-radius: 18px;
+    }
+
+    .question-input {
+      width: 100%;
+      min-height: 48px;
+      padding: 0 16px;
+      border: 1px solid rgba(216, 184, 106, 0.24);
+      border-radius: 999px;
+      color: var(--ink);
+      background: rgba(5, 8, 28, 0.42);
+      outline: none;
+    }
+
+    .question-input::placeholder {
+      color: rgba(247, 239, 224, 0.46);
+    }
+
+    .question-input:focus {
+      border-color: rgba(216, 184, 106, 0.62);
+      box-shadow: 0 0 0 4px rgba(216, 184, 106, 0.12);
+    }
+
+    .primary-button,
+    .ghost-button {
+      min-height: 48px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      cursor: pointer;
+      transition: transform 180ms ease, box-shadow 180ms ease, background 180ms ease;
+      white-space: nowrap;
+    }
+
+    .primary-button {
+      padding: 0 24px;
+      border: 1px solid rgba(247, 239, 224, 0.2);
+      color: #17102d;
+      background: linear-gradient(180deg, #ffe8a8 0%, var(--gold) 62%, #b99443 100%);
+      box-shadow: 0 16px 34px rgba(216, 184, 106, 0.25);
+    }
+
+    .ghost-button {
+      padding: 0 18px;
+      border: 1px solid rgba(216, 184, 106, 0.24);
+      color: var(--ink);
+      background: rgba(247, 239, 224, 0.06);
+    }
+
+    .primary-button:hover,
+    .ghost-button:hover {
+      transform: translateY(-2px);
+    }
+
+    .result-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      padding: 22px;
+      border-radius: 24px;
+    }
+
+    .panel-title {
+      margin: 0;
+      color: var(--gold);
+      font-size: 1.24rem;
+      font-weight: 500;
+      line-height: 1.35;
+    }
+
+    .result-card {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      min-height: 260px;
+      padding: 18px;
+      border: 1px solid rgba(247, 239, 224, 0.16);
+      border-radius: 18px;
+      background: var(--glass-light);
+      opacity: 1;
+      transform: translateY(0);
+      transition: opacity 420ms ease, transform 420ms ease;
+    }
+
+    .result-card.is-fading {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+
+    .result-name {
+      margin: 0;
+      font-size: 1.72rem;
+      font-weight: 500;
+      line-height: 1.25;
+    }
+
+    .orientation {
+      width: fit-content;
+      min-height: 32px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 6px 12px;
+      border: 1px solid rgba(216, 184, 106, 0.34);
+      border-radius: 999px;
+      color: var(--gold);
+      background: rgba(216, 184, 106, 0.1);
+      font-size: 0.9rem;
+    }
+
+    .question-ref,
+    .reading-text,
+    .empty-state {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.98rem;
+      line-height: 1.85;
+    }
+
+    .question-ref {
+      color: rgba(247, 239, 224, 0.54);
+    }
+
+    .history-panel {
+      padding: 16px;
+      border-radius: 18px;
+    }
+
+    .history-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .history-title {
+      margin: 0;
+      font-size: 1rem;
+      font-weight: 500;
+    }
+
+    .text-button {
+      min-height: 32px;
+      padding: 5px 10px;
+      border: 1px solid rgba(216, 184, 106, 0.2);
+      border-radius: 999px;
+      color: rgba(247, 239, 224, 0.72);
+      background: rgba(247, 239, 224, 0.06);
+      cursor: pointer;
+    }
+
+    .text-button:disabled {
+      cursor: default;
+      opacity: 0.4;
+    }
+
+    .history-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      max-height: 280px;
+      overflow: auto;
+    }
+
+    .history-item {
+      padding: 11px 12px;
+      border: 1px solid rgba(216, 184, 106, 0.16);
+      border-radius: 12px;
+      background: rgba(5, 8, 28, 0.26);
+    }
+
+    .history-main {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      color: var(--ink);
+      font-size: 0.94rem;
+      line-height: 1.5;
+    }
+
+    .history-question,
+    .history-time {
+      margin: 6px 0 0;
+      color: var(--faint);
+      font-size: 0.82rem;
+      line-height: 1.55;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    @media (max-width: 860px) {
+      .app {
+        padding: 20px;
+      }
+
+      .topbar {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .shell {
+        grid-template-columns: 1fr;
+      }
+
+      .stage {
+        min-height: auto;
+      }
+    }
+
+    @media (max-width: 620px) {
+      .app {
+        padding: 16px;
+      }
+
+      .stage,
+      .result-panel {
+        padding: 16px;
+        border-radius: 18px;
+      }
+
+      .tarot-card {
+        width: min(74vw, 230px);
+        border-radius: 22px;
+      }
+
+      .control-panel {
+        grid-template-columns: 1fr;
+      }
+
+      .primary-button,
+      .ghost-button {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <div class="title-block">
+        <h1>禅塔罗</h1>
+        <p class="subtitle">静心 · 觉察 · 疗愈</p>
+      </div>
+    </header>
+
+    <section class="shell" aria-label="禅塔罗抽牌应用">
+      <div class="stage">
+        <div class="card-zone">
+          <article class="tarot-card" id="tarotCard" aria-live="polite">
+            <div class="card-face">
+              <div class="card-symbol" id="cardSymbol">禅</div>
+              <p class="card-label" id="cardLabel">牌背静候</p>
+            </div>
+          </article>
+        </div>
+
+        <form class="control-panel" id="drawForm">
+          <input class="question-input" id="questionInput" type="text" maxlength="80" placeholder="写下当前困惑，可留空">
+          <button class="primary-button" type="submit" id="drawButton">抽牌</button>
+          <button class="ghost-button" type="button" id="resetButton">重置</button>
+        </form>
+      </div>
+
+      <aside class="result-panel" aria-labelledby="resultTitle">
+        <h2 class="panel-title" id="resultTitle">解读结果</h2>
+        <section class="result-card" id="resultCard">
+          <p class="empty-state" id="emptyState">请先静心片刻，输入或默念你的问题，然后抽取一张牌。</p>
+          <h3 class="result-name hidden" id="resultName"></h3>
+          <div class="orientation hidden" id="orientation"></div>
+          <p class="question-ref hidden" id="questionRef"></p>
+          <p class="reading-text hidden" id="readingText"></p>
+        </section>
+
+        <section class="history-panel" aria-labelledby="historyTitle">
+          <div class="history-head">
+            <h3 class="history-title" id="historyTitle">历史抽牌记录</h3>
+            <button class="text-button" type="button" id="clearHistoryButton">清空</button>
+          </div>
+          <ul class="history-list" id="historyList"></ul>
+          <p class="history-time" id="historyEmpty">暂无历史记录。</p>
+        </section>
+      </aside>
+    </section>
+  </main>
+
+  <script src="cards.js"></script>
+  <script>
+    const HISTORY_KEY = "zenTarotHistory";
+
+    const drawForm = document.querySelector("#drawForm");
+    const questionInput = document.querySelector("#questionInput");
+    const resetButton = document.querySelector("#resetButton");
+    const clearHistoryButton = document.querySelector("#clearHistoryButton");
+    const tarotCard = document.querySelector("#tarotCard");
+    const cardSymbol = document.querySelector("#cardSymbol");
+    const cardLabel = document.querySelector("#cardLabel");
+    const resultCard = document.querySelector("#resultCard");
+    const emptyState = document.querySelector("#emptyState");
+    const resultName = document.querySelector("#resultName");
+    const orientation = document.querySelector("#orientation");
+    const questionRef = document.querySelector("#questionRef");
+    const readingText = document.querySelector("#readingText");
+    const historyList = document.querySelector("#historyList");
+    const historyEmpty = document.querySelector("#historyEmpty");
+
+    function getHistory() {
+      try {
+        return JSON.parse(localStorage.getItem(HISTORY_KEY)) || [];
+      } catch {
+        return [];
+      }
+    }
+
+    function saveHistory(history) {
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+    }
+
+    function formatTime(timestamp) {
+      return new Intl.DateTimeFormat("zh-CN", {
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit"
+      }).format(new Date(timestamp));
+    }
+
+    function buildReading(card, orientationText, question) {
+      const base = orientationText === "正位" ? card.uprightMeaning : card.reversedMeaning;
+
+      if (!question) {
+        return `${base} 请把这张牌当作一次提醒：先看见当下真实的状态，再决定下一步如何行动。`;
+      }
+
+      return `关于“${question}”，${base} 这张牌提醒你不要只追问结果，也要看见问题背后的需求、恐惧与期待。`;
+    }
+
+    function renderHistory() {
+      const history = getHistory();
+
+      historyList.innerHTML = "";
+      historyEmpty.hidden = history.length > 0;
+      clearHistoryButton.disabled = history.length === 0;
+
+      history.forEach((item) => {
+        const li = document.createElement("li");
+        const main = document.createElement("div");
+        const name = document.createElement("span");
+        const pos = document.createElement("span");
+        const time = document.createElement("p");
+        const displayName = item.cardName || item.name || "未知牌";
+        const displayOrientation = item.orientation || "未记录";
+
+        li.className = "history-item";
+        main.className = "history-main";
+        name.textContent = displayName;
+        pos.textContent = displayOrientation;
+        time.className = "history-time";
+        time.textContent = formatTime(item.drawnAt);
+
+        main.append(name, pos);
+        li.append(main);
+
+        if (item.question) {
+          const question = document.createElement("p");
+          question.className = "history-question";
+          question.textContent = item.question;
+          li.append(question);
+        }
+
+        li.append(time);
+        historyList.append(li);
+      });
+    }
+
+    function addHistory(record) {
+      const history = getHistory();
+      history.unshift(record);
+      saveHistory(history.slice(0, 20));
+      renderHistory();
+    }
+
+    function showResult(card, orientationText, question, reading) {
+      tarotCard.classList.add("is-fading");
+      resultCard.classList.add("is-fading");
+
+      window.setTimeout(() => {
+        cardSymbol.textContent = card.imagePlaceholder;
+        cardLabel.textContent = card.name;
+        tarotCard.classList.add("is-drawn");
+
+        emptyState.classList.add("hidden");
+        resultName.classList.remove("hidden");
+        orientation.classList.remove("hidden");
+        questionRef.classList.toggle("hidden", !question);
+        readingText.classList.remove("hidden");
+
+        resultName.textContent = card.name;
+        orientation.textContent = orientationText;
+        questionRef.textContent = question ? `你的问题：${question}` : "";
+        readingText.textContent = reading;
+
+        tarotCard.classList.remove("is-fading");
+        resultCard.classList.remove("is-fading");
+      }, 180);
+    }
+
+    function drawCard(event) {
+      event.preventDefault();
+
+      const card = tarotCards[Math.floor(Math.random() * tarotCards.length)];
+      const orientationText = Math.random() < 0.5 ? "正位" : "逆位";
+      const question = questionInput.value.trim();
+      const reading = buildReading(card, orientationText, question);
+
+      showResult(card, orientationText, question, reading);
+      addHistory({
+        cardId: card.id,
+        cardName: card.name,
+        orientation: orientationText,
+        question,
+        drawnAt: Date.now()
+      });
+    }
+
+    function resetCurrent() {
+      tarotCard.classList.remove("is-drawn");
+      cardSymbol.textContent = "禅";
+      cardLabel.textContent = "牌背静候";
+      questionInput.value = "";
+      emptyState.classList.remove("hidden");
+      resultName.classList.add("hidden");
+      orientation.classList.add("hidden");
+      questionRef.classList.add("hidden");
+      readingText.classList.add("hidden");
+      resultName.textContent = "";
+      orientation.textContent = "";
+      questionRef.textContent = "";
+      readingText.textContent = "";
+    }
+
+    function clearHistory() {
+      localStorage.removeItem(HISTORY_KEY);
+      renderHistory();
+    }
+
+    drawForm.addEventListener("submit", drawCard);
+    resetButton.addEventListener("click", resetCurrent);
+    clearHistoryButton.addEventListener("click", clearHistory);
+    renderHistory();
+  </script>
+</body>
+</html>
